@@ -6,15 +6,13 @@
 package ntriples
 
 import (
-  "bufio"
-  "bytes"
-  "errors"
-  "fmt"
-  "io"
-  "unicode"
+	"bufio"
+	"bytes"
+	"errors"
+	"fmt"
+	"io"
+	"unicode"
 )
-
-
 
 // A ParseError is returned for parsing errors.
 // The first line is 1.  The first column is 0.
@@ -30,20 +28,20 @@ func (e *ParseError) Error() string {
 
 // These are the errors that can be returned in ParseError.Error
 var (
-	ErrUnexpectedCharacter         = errors.New("unexpected character")
-	ErrUnexpectedEOF         = errors.New("unexpected end of file")
-	ErrTermCount    = errors.New("wrong number of terms in line")
-	ErrUnterminatedIri    = errors.New("unterminated IRI, expecting '>'")
-	ErrUnterminatedLiteral    = errors.New("unterminated Literal, expecting '\"'")
+	ErrUnexpectedCharacter = errors.New("unexpected character")
+	ErrUnexpectedEOF       = errors.New("unexpected end of file")
+	ErrTermCount           = errors.New("wrong number of terms in line")
+	ErrUnterminatedIri     = errors.New("unterminated IRI, expecting '>'")
+	ErrUnterminatedLiteral = errors.New("unterminated literal, expecting '\"'")
+	ErrUnterminatedTriple  = errors.New("unterminated triple, expecting '.'")
 )
 
 type Reader struct {
-	line             int
-	column           int
-	r                *bufio.Reader
-	buf             bytes.Buffer
+	line   int
+	column int
+	r      *bufio.Reader
+	buf    bytes.Buffer
 }
-
 
 type Triple struct {
 	s RdfTerm
@@ -58,9 +56,8 @@ const (
 	RdfLiteral
 )
 
-
-type RdfTerm struct { 
-	value string
+type RdfTerm struct {
+	value    string
 	language string
 	datatype string
 	termtype int
@@ -101,10 +98,9 @@ func (t Triple) String() string {
 // NewReader returns a new Reader that reads from r.
 func NewReader(r io.Reader) *Reader {
 	return &Reader{
-		r:     bufio.NewReader(r),
+		r: bufio.NewReader(r),
 	}
 }
-
 
 // error creates a new ParseError based on err.
 func (r *Reader) error(err error) error {
@@ -117,16 +113,29 @@ func (r *Reader) error(err error) error {
 
 func (r *Reader) Read() (t Triple, e error) {
 	r.line++
-	r.column=-1
+	r.column = -1
 
-	_, _, err := r.r.ReadRune()
-   	if err != nil {
-   		return Triple{}, err
+	r1, err := r.skipWhitespace()
+	if err != nil {
+		return Triple{}, err
 	}
 
-	// if r.Comment != 0 && r1 == r.Comment {
-	// 	return nil, r.skip('\n')
-	// }
+	for r1 == '#' {
+		for {
+			r1, err = r.readRune()
+			if err != nil {
+				return Triple{}, err
+			}
+			if r1 == '\n' {
+				break
+			}
+		}
+		r1, err = r.skipWhitespace()
+		if err != nil {
+			return Triple{}, err
+		}
+
+	}
 
 	r.r.UnreadRune()
 
@@ -138,15 +147,21 @@ func (r *Reader) Read() (t Triple, e error) {
 			switch termCount {
 			case 1:
 				t.s = term
+				err = r.expectWhitespace()
+				if err != nil {
+					return Triple{}, err
+				}
 			case 2:
 				t.p = term
+				err = r.expectWhitespace()
+				if err != nil {
+					return Triple{}, err
+				}
 			case 3:
 				t.o = term
-		
-				err = r.readToEOL()
-				if err != nil {
-					println("FOO: ", err.Error())
 
+				err = r.readEndTriple()
+				if err != nil {
 					return Triple{}, err
 				}
 
@@ -156,17 +171,12 @@ func (r *Reader) Read() (t Triple, e error) {
 				return Triple{}, r.error(ErrTermCount)
 			}
 
-
-			
 		}
 		if err != nil {
 			return Triple{}, err
-		} 
+		}
 	}
-	panic("unreachable")	
-
-
-
+	panic("unreachable")
 
 	return Triple{}, nil
 
@@ -194,7 +204,6 @@ func (r *Reader) readRune() (rune, error) {
 	return r1, err
 }
 
-
 // unreadRune puts the last rune read from r back.
 func (r *Reader) unreadRune() {
 	r.r.UnreadRune()
@@ -203,34 +212,23 @@ func (r *Reader) unreadRune() {
 
 func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 	r.buf.Reset()
-	
-	r1, err := r.readRune()
-   	if err != nil {
-		return false, term, err
-	}
 
-	// Skip whitespace
-	for r1 != '\n' && unicode.IsSpace(r1) {
-		r1, err = r.readRune()
-		if err != nil {
-			return false, term, err
-		}
-	}
+	r1, err := r.skipWhitespace()
 
 	switch r1 {
 	case '<':
 		// Read an IRI
 		for {
 			r1, err = r.readRune()
-   			if err != nil {
-   				if err == io.EOF {
-   					return false, term, r.error(ErrUnexpectedEOF)
-   				}
-   				return false, term, err
-   			}
+			if err != nil {
+				if err == io.EOF {
+					return false, term, r.error(ErrUnexpectedEOF)
+				}
+				return false, term, err
+			}
 			switch r1 {
-				case '>':
-					return true, RdfTerm{value:r.buf.String(), termtype:RdfIri}, nil
+			case '>':
+				return true, RdfTerm{value: r.buf.String(), termtype: RdfIri}, nil
 			}
 			r.buf.WriteRune(r1)
 		}
@@ -243,19 +241,37 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 			}
 			return false, term, err
 		}
+
 		if r1 != ':' {
 			return false, term, r.error(ErrUnexpectedCharacter)
 		}
+
+		r1, err = r.readRune()
+		if err != nil {
+			if err == io.EOF {
+				return false, term, r.error(ErrUnexpectedEOF)
+			}
+			return false, term, err
+		}
+		if !((r1 >= 'a' && r1 <= 'z') || (r1 >= 'A' && r1 <= 'Z')) {
+			return false, term, r.error(ErrUnexpectedCharacter)
+		}
+		r.buf.WriteRune(r1)
+
 		for {
 			r1, err = r.readRune()
-   			if err != nil {
-   				if err == io.EOF {
-   					return false, term, r.error(ErrUnexpectedEOF)
-   				}
-   				return false, term, err
-   			}
-			if r1 == '.' || unicode.IsSpace(r1) {
-				return true, RdfTerm{value:r.buf.String(), termtype:RdfBlank}, nil
+			if err != nil {
+				if err == io.EOF {
+					return false, term, r.error(ErrUnexpectedEOF)
+				}
+				return false, term, err
+			}
+			if !((r1 >= 'a' && r1 <= 'z') || (r1 >= 'A' && r1 <= 'Z') || (r1 >= '0' && r1 <= '9')) {
+				if r1 == '.' || unicode.IsSpace(r1) {
+					r.unreadRune()
+					return true, RdfTerm{value: r.buf.String(), termtype: RdfBlank}, nil
+				}
+				return false, term, r.error(ErrUnexpectedCharacter)
 			}
 			r.buf.WriteRune(r1)
 		}
@@ -264,62 +280,59 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 		// Read a literal
 		for {
 			r1, err = r.readRune()
-   			if err != nil {
-   				if err == io.EOF {
-   					return false, term, r.error(ErrUnexpectedEOF)
-   				}
-   				return false, term, err
-   			}
+			if err != nil {
+				if err == io.EOF {
+					return false, term, r.error(ErrUnexpectedEOF)
+				}
+				return false, term, err
+			}
 			switch r1 {
-				case '"':
-					r1, err = r.readRune()
-	   				if err == io.EOF {
-	   					return false, term, r.error(ErrUnexpectedEOF)
-	   				}
-	   				if r1 == '.' || unicode.IsSpace(r1) {
-	   					r.unreadRune()
-						return true, RdfTerm{value:r.buf.String(), termtype:RdfLiteral}, nil
-	   				}
-	   				if r1 == '@' {
-	   					tmpterm := RdfTerm{value:r.buf.String(), termtype:RdfLiteral}
-	   					r.buf.Reset()
+			case '"':
+				r1, err = r.readRune()
+				if err == io.EOF {
+					return false, term, r.error(ErrUnexpectedEOF)
+				}
+				if r1 == '.' || r1 == ' ' || r1 == '\t' {
+					r.unreadRune()
+					return true, RdfTerm{value: r.buf.String(), termtype: RdfLiteral}, nil
+				}
+				if r1 == '@' {
+					tmpterm := RdfTerm{value: r.buf.String(), termtype: RdfLiteral}
+					r.buf.Reset()
 
-	   					for {
-							r1, err = r.readRune()
-				   			if err != nil {
-				   				if err == io.EOF {
-				   					return false, term, r.error(ErrUnexpectedEOF)
-				   				}
-				   				return false, term, err
-				   			}
-	   						if r1 == '.' || unicode.IsSpace(r1) {
-	   							if r.buf.Len() == 0 {
-									return false, term, r.error(ErrUnexpectedCharacter)
-	   							}
-	   							tmpterm.language = r.buf.String()
-				   				return true, tmpterm, nil
-	   						}
-	   						if r1 == '-' || (r1 >= 'a' && r1 <= 'z') || (r1 >= '0' && r1 <= '9') {
-								r.buf.WriteRune(r1)
-							} else {
+					for {
+						r1, err = r.readRune()
+						if err != nil {
+							if err == io.EOF {
+								return false, term, r.error(ErrUnexpectedEOF)
+							}
+							return false, term, err
+						}
+						if r1 == '.' || r1 == ' ' || r1 == '\t' {
+							if r.buf.Len() == 0 {
 								return false, term, r.error(ErrUnexpectedCharacter)
 							}
-	   					}
+							tmpterm.language = r.buf.String()
+							return true, tmpterm, nil
+						}
+						if r1 == '-' || (r1 >= 'a' && r1 <= 'z') || (r1 >= '0' && r1 <= '9') {
+							r.buf.WriteRune(r1)
+						} else {
+							return false, term, r.error(ErrUnexpectedCharacter)
+						}
+					}
 
+				}
+				return false, term, r.error(ErrUnexpectedCharacter)
 
-	   				}
-					return false, term, r.error(ErrUnexpectedCharacter)
-
-
-
-				case '\\':
+			case '\\':
 				r1, err = r.readRune()
-	   			if err != nil {
-	   				if err == io.EOF {
-	   					return false, term, r.error(ErrUnexpectedEOF)
-	   				}
-	   				return false, term, err
-	   			}
+				if err != nil {
+					if err == io.EOF {
+						return false, term, r.error(ErrUnexpectedEOF)
+					}
+					return false, term, err
+				}
 				switch r1 {
 				case '\\', '"':
 				case 't':
@@ -332,31 +345,31 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 
 					codepoint := rune(0)
 
-					for i:=3; i >= 0; i-- {
+					for i := 3; i >= 0; i-- {
 						r1, err = r.readRune()
-			   				
-			   			if err != nil {
-			   				if err == io.EOF {
-			   					return false, term, r.error(ErrUnexpectedEOF)
-			   				}
-			   				return false, term, err
-			   			}
 
-			   			if r1 >= '0' && r1 <= '9' {
-			   				codepoint += (1 << uint32(4*i)) * (r1 - '0')
-			   			} else if r1 >= 'a' && r1 <= 'f' {
-			   				codepoint += (1 << uint32(4*i)) * (r1 - 'a' + 10)
-			   			} else if r1 >= 'A' && r1 <= 'F' {
-			   				codepoint += (1 << uint32(4*i)) * (r1 - 'A' + 10)
-			   			} else {
+						if err != nil {
+							if err == io.EOF {
+								return false, term, r.error(ErrUnexpectedEOF)
+							}
+							return false, term, err
+						}
+
+						if r1 >= '0' && r1 <= '9' {
+							codepoint += (1 << uint32(4*i)) * (r1 - '0')
+						} else if r1 >= 'a' && r1 <= 'f' {
+							codepoint += (1 << uint32(4*i)) * (r1 - 'a' + 10)
+						} else if r1 >= 'A' && r1 <= 'F' {
+							codepoint += (1 << uint32(4*i)) * (r1 - 'A' + 10)
+						} else {
 							return false, term, r.error(ErrUnexpectedCharacter)
-			   			}
+						}
 
 					}
 					r1 = codepoint
 
 				default:
-	   					return false, term, r.error(ErrUnexpectedCharacter)
+					return false, term, r.error(ErrUnexpectedCharacter)
 				}
 			}
 			r.buf.WriteRune(r1)
@@ -367,62 +380,68 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 
 	}
 
-	panic("unreachable")	
+	panic("unreachable")
 
 }
 
-
-func (r *Reader) readToEOL() (err error) {
-	r1, err := r.readRune()
-   	if err != nil {
+func (r *Reader) readEndTriple() (err error) {
+	r1, err := r.skipWhitespace()
+	if err != nil {
 		if err == io.EOF {
-			return r.error(ErrUnexpectedEOF)
+			return r.error(ErrUnterminatedTriple)
 		}
 		return err
-	}
-
-	// Skip whitespace
-	for unicode.IsSpace(r1) {
-		r1, err = r.readRune()
-		if err != nil {
-			if err == io.EOF {
-				return r.error(ErrUnexpectedEOF)
-			}
-			return err
-		}
 	}
 
 	if r1 != '.' {
 		return r.error(ErrUnexpectedCharacter)
 	}
 
-	r1, err = r.readRune()
-   	if err != nil {
+	r1, err = r.skipWhitespace()
+	if err != nil {
 		if err == io.EOF {
 			return nil
 		}
 		return err
 	}
 
-	// Skip whitespace
-	for unicode.IsSpace(r1) {
-		if r1 == '\n' {
-			return nil
-		}
-		r1, err = r.readRune()
-		if err != nil {
-			if err == io.EOF {
-				return nil
-			}
-			return err
-		}
-	}
-
 	if r1 != '\n' {
-		println("FOOOO", r1)
 		return r.error(ErrUnexpectedCharacter)
 	}
 
 	return nil
 
+}
+
+func (r *Reader) skipWhitespace() (r1 rune, err error) {
+	r1, err = r.readRune()
+	if err != nil {
+		return r1, err
+	}
+
+	// Skip whitespace
+	for r1 == ' ' || r1 == '\t' {
+		r1, err = r.readRune()
+		if err != nil {
+			return r1, err
+		}
+	}
+
+	return r1, nil
+
+}
+
+func (r *Reader) expectWhitespace() (err error) {
+	r1, err := r.readRune()
+	if err != nil {
+		if err == io.EOF {
+			return r.error(ErrUnexpectedEOF)
+		}
+		return err
+	}
+	if r1 != ' ' && r1 != '\t' {
+		return r.error(ErrUnexpectedCharacter)
+	}
+
+	return nil
 }
