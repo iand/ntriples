@@ -1,7 +1,16 @@
 ntriples - a basic ntriples parser in Go
 
+INSTALLATION
+============
+
+Simply run
+
+	go get github.com/iand/ntriples
+
 USAGE
 =====
+
+Example of parsing an ntriples file and printing out every 5000th triple
 
 	package main
 
@@ -33,3 +42,14 @@ USAGE
 
 
 	}
+
+LICENSE
+=======
+This code and associated documentation is in the public domain.
+
+To the extent possible under law, Ian Davis has waived all copyright
+and related or neighboring rights to this file. This work is published from the United Kingdom. 
+
+CREDITS
+=======
+The design and logic is hugely inspired by Go's standard csv parsing library

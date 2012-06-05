@@ -4,6 +4,8 @@
   This work is published from the United Kingdom. 
 */
 
+
+// A package for parsing N-Triples 
 package ntriples
 
 import (
