@@ -226,9 +226,13 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 				}
 				return false, term, err
 			}
-			switch r1 {
-			case '>':
+			if r1 == '>' {
+				if r.buf.Len() == 0 {
+					return false, term, r.error(ErrUnexpectedCharacter)
+				}
 				return true, RdfTerm{value: r.buf.String(), termtype: RdfIri}, nil
+			} else if r1 < 0x20 || r1 > 0x7E || r1 == ' ' || r1 == '<' || r1 == '"' {
+				return false, term, r.error(ErrUnexpectedCharacter)
 			}
 			r.buf.WriteRune(r1)
 		}
