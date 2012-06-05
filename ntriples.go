@@ -4,7 +4,6 @@
   This work is published from the United Kingdom. 
 */
 
-
 // A package for parsing N-Triples 
 package ntriples
 
@@ -46,19 +45,18 @@ type Reader struct {
 	buf    bytes.Buffer
 }
 
+// A Triple consists of a subject, predicate and object
 type Triple struct {
 	s RdfTerm
 	p RdfTerm
 	o RdfTerm
 }
 
-const (
-	RdfUnknown = iota
-	RdfIri
-	RdfBlank
-	RdfLiteral
-)
+func (t Triple) String() string {
+	return fmt.Sprintf("%s %s %s .", t.s, t.p, t.o)
+}
 
+// An RdfTerm represents one of Iri, Blank Node or Literal
 type RdfTerm struct {
 	value    string
 	language string
@@ -66,37 +64,33 @@ type RdfTerm struct {
 	termtype int
 }
 
-func (t Triple) String() string {
-	var s, p, o string
-
-	switch t.s.termtype {
+func (t RdfTerm) String() string {
+	switch t.termtype {
 	case RdfIri:
-		s = fmt.Sprintf("<%s>", t.s.value)
+		return fmt.Sprintf("<%s>", t.value)
 
 	case RdfBlank:
-		s = fmt.Sprintf("_:%s", t.s.value)
-	}
-
-	p = fmt.Sprintf("<%s>", t.p.value)
-
-	switch t.o.termtype {
-	case RdfIri:
-		o = fmt.Sprintf("<%s>", t.o.value)
-
-	case RdfBlank:
-		o = fmt.Sprintf("_:%s", t.o.value)
+		return fmt.Sprintf("_:%s", t.value)
 	case RdfLiteral:
-		if t.o.language != "" {
-			o = fmt.Sprintf("\"%s\"@%s", t.o.value, t.o.language)
-		} else if t.o.datatype != "" {
-			o = fmt.Sprintf("\"%s\"^^<%s>", t.o.value, t.o.datatype)
+		if t.language != "" {
+			return fmt.Sprintf("\"%s\"@%s", t.value, t.language)
+		} else if t.datatype != "" {
+			return fmt.Sprintf("\"%s\"^^<%s>", t.value, t.datatype)
 		} else {
-			o = fmt.Sprintf("\"%s\"", t.o.value)
+			return fmt.Sprintf("\"%s\"", t.value)
 		}
 	}
 
-	return fmt.Sprintf("%s %s %s .", s, p, o)
+	return "[unknown type]"
 }
+
+// Constants for types of RdfTerm
+const (
+	RdfUnknown = iota
+	RdfIri
+	RdfBlank
+	RdfLiteral
+)
 
 // NewReader returns a new Reader that reads from r.
 func NewReader(r io.Reader) *Reader {
@@ -114,6 +108,7 @@ func (r *Reader) error(err error) error {
 	}
 }
 
+// Read reads the next triple
 func (r *Reader) Read() (t Triple, e error) {
 	r.line++
 	r.column = -1
