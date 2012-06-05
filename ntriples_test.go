@@ -71,6 +71,12 @@ var testCases = map[string]Triple{
 	"# this is a comment \n   # another comment \n<http://example.org/resource1> <http://example.org/property> <http://example.org/resource2> .": Triple{s: RdfTerm{value: "http://example.org/resource1", termtype: RdfIri},
 		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
 		o: RdfTerm{value: "http://example.org/resource2", termtype: RdfIri}},
+
+	"<http://example.org/resource7> <http://example.org/property> \"typed literal\"^^<http://example.org/datatype1> .": Triple{s: RdfTerm{value: "http://example.org/resource7", termtype: RdfIri},
+		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
+		o: RdfTerm{value: "typed literal", datatype: "http://example.org/datatype1", termtype: RdfLiteral}},
+
+
 }
 
 var negativeCases = map[string]error{
@@ -91,6 +97,10 @@ var negativeCases = map[string]error{
 	"_abc <http://example.org/property> <http://example.org/resource2>.":                             ErrUnexpectedCharacter,
 	"_:a-bc <http://example.org/property> <http://example.org/resource2>.":                           ErrUnexpectedCharacter,
 	"_:abc<http://example.org/property> <http://example.org/resource2>.":                             ErrUnexpectedCharacter,
+	"_:abc <http://example.org/property> \"foo\"@ .":                             ErrUnexpectedCharacter,
+	"_:abc <http://example.org/property> \"foo\"^ .":                             ErrUnexpectedCharacter,
+	"_:abc <http://example.org/property> \"foo\"^^< .":                             ErrUnexpectedCharacter,
+	"_:abc <http://example.org/property> \"foo\"^^<> .":                             ErrUnexpectedCharacter,
 }
 
 func TestRead(t *testing.T) {

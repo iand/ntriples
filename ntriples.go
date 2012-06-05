@@ -3,6 +3,7 @@
   and related or neighboring rights to this Source Code file.
   This work is published from the United Kingdom. 
 */
+
 package ntriples
 
 import (
@@ -176,7 +177,6 @@ func (r *Reader) Read() (t Triple, e error) {
 			return Triple{}, err
 		}
 	}
-	panic("unreachable")
 
 	return Triple{}, nil
 
@@ -289,14 +289,19 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 			switch r1 {
 			case '"':
 				r1, err = r.readRune()
-				if err == io.EOF {
-					return false, term, r.error(ErrUnexpectedEOF)
+				if err != nil {
+					if err == io.EOF {
+						return false, term, r.error(ErrUnexpectedEOF)
+					}
+					return false, term, err
 				}
-				if r1 == '.' || r1 == ' ' || r1 == '\t' {
+
+				switch r1 {
+
+				case '.', ' ', '\t':
 					r.unreadRune()
 					return true, RdfTerm{value: r.buf.String(), termtype: RdfLiteral}, nil
-				}
-				if r1 == '@' {
+				case '@':
 					tmpterm := RdfTerm{value: r.buf.String(), termtype: RdfLiteral}
 					r.buf.Reset()
 
@@ -320,6 +325,52 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 						} else {
 							return false, term, r.error(ErrUnexpectedCharacter)
 						}
+					}
+				case '^':
+					tmpterm := RdfTerm{value: r.buf.String(), termtype: RdfLiteral}
+					r.buf.Reset()
+
+					r1, err = r.readRune()
+					if err != nil {
+						if err == io.EOF {
+							return false, term, r.error(ErrUnexpectedEOF)
+						}
+						return false, term, err
+					}
+					if r1 != '^' {
+						return false, term, r.error(ErrUnexpectedCharacter)
+					}
+
+					r1, err = r.readRune()
+					if err != nil {
+						if err == io.EOF {
+							return false, term, r.error(ErrUnexpectedEOF)
+						}
+						return false, term, err
+					}
+					if r1 != '<' {
+						return false, term, r.error(ErrUnexpectedCharacter)
+					}
+
+					// Read an IRI
+					for {
+						r1, err = r.readRune()
+						if err != nil {
+							if err == io.EOF {
+								return false, term, r.error(ErrUnexpectedEOF)
+							}
+							return false, term, err
+						}
+						if r1 == '>' {
+							if r.buf.Len() == 0 {
+								return false, term, r.error(ErrUnexpectedCharacter)
+							}
+							tmpterm.datatype = r.buf.String()
+							return true, tmpterm, nil
+						} else if r1 < 0x20 || r1 > 0x7E || r1 == ' ' || r1 == '<' || r1 == '"' {
+							return false, term, r.error(ErrUnexpectedCharacter)
+						}
+						r.buf.WriteRune(r1)
 					}
 
 				}
@@ -419,7 +470,6 @@ func (r *Reader) skipWhitespace() (r1 rune, err error) {
 		return r1, err
 	}
 
-	// Skip whitespace
 	for r1 == ' ' || r1 == '\t' {
 		r1, err = r.readRune()
 		if err != nil {
