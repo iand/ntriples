@@ -7,6 +7,8 @@ Simply run
 
 	go get github.com/iand/ntriples
 
+Documentation is at [http://go.pkgdoc.org/github.com/iand/ntriples](http://go.pkgdoc.org/github.com/iand/ntriples)
+
 USAGE
 =====
 
