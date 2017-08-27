@@ -1,5 +1,7 @@
 ntriples - a basic ntriples parser in Go
 
+[![Build Status](https://travis-ci.org/iand/ntriples.svg?branch=master)](https://travis-ci.org/iand/ntriples)
+
 INSTALLATION
 ============
 
@@ -47,10 +49,8 @@ Example of parsing an ntriples file and printing out every 5000th triple
 
 LICENSE
 =======
-This code and associated documentation is in the public domain.
-
-To the extent possible under law, Ian Davis has waived all copyright
-and related or neighboring rights to this file. This work is published from the United Kingdom. 
+This is free and unencumbered software released into the public domain. For more
+information, see <http://unlicense.org/> or the accompanying [`UNLICENSE`](UNLICENSE) file.
 
 CREDITS
 =======

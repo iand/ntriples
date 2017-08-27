@@ -1,8 +1,8 @@
 /*
-  To the extent possible under law, Ian Davis has waived all copyright
-  and related or neighboring rights to this Source Code file.
-  This work is published from the United Kingdom. 
+  This is free and unencumbered software released into the public domain. For more
+  information, see <http://unlicense.org/> or the accompanying UNLICENSE file.
 */
+
 package ntriples
 
 import (
@@ -12,69 +12,100 @@ import (
 )
 
 var testCases = map[string]Triple{
-	"<http://example.org/resource1> <http://example.org/property> <http://example.org/resource2> .": Triple{s: RdfTerm{value: "http://example.org/resource1", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "http://example.org/resource2", termtype: RdfIri}},
+	"<http://example.org/resource1> <http://example.org/property> <http://example.org/resource2> .": {
+		S: RdfTerm{Value: "http://example.org/resource1", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "http://example.org/resource2", TermType: RdfIri},
+	},
 
-	"_:anon <http://example.org/property> <http://example.org/resource2> .": Triple{s: RdfTerm{value: "anon", termtype: RdfBlank},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "http://example.org/resource2", termtype: RdfIri}},
+	"_:anon <http://example.org/property> <http://example.org/resource2> .": {
+		S: RdfTerm{Value: "anon", TermType: RdfBlank},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "http://example.org/resource2", TermType: RdfIri},
+	},
 
-	"<http://example.org/resource1> <http://example.org/property> _:anon .": Triple{s: RdfTerm{value: "http://example.org/resource1", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "anon", termtype: RdfBlank}},
+	"<http://example.org/resource1> <http://example.org/property> _:anon .": {
+		S: RdfTerm{Value: "http://example.org/resource1", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "anon", TermType: RdfBlank},
+	},
 
-	" 	 <http://example.org/resource3> 	 <http://example.org/property>	 <http://example.org/resource2> 	.": Triple{s: RdfTerm{value: "http://example.org/resource3", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "http://example.org/resource2", termtype: RdfIri}},
+	" 	 <http://example.org/resource3> 	 <http://example.org/property>	 <http://example.org/resource2> 	.": {
+		S: RdfTerm{Value: "http://example.org/resource3", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "http://example.org/resource2", TermType: RdfIri},
+	},
 
-	"<http://example.org/resource7> <http://example.org/property> \"simple literal\" .": Triple{s: RdfTerm{value: "http://example.org/resource7", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "simple literal", termtype: RdfLiteral}},
+	"<http://example.org/resource7> <http://example.org/property> \"simple literal\" .": {
+		S: RdfTerm{Value: "http://example.org/resource7", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "simple literal", TermType: RdfLiteral},
+	},
 
-	`<http://example.org/resource8> <http://example.org/property> "backslash:\\" .`: Triple{s: RdfTerm{value: "http://example.org/resource8", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "backslash:\\", termtype: RdfLiteral}},
+	`<http://example.org/resource8> <http://example.org/property> "backslash:\\" .`: {
+		S: RdfTerm{Value: "http://example.org/resource8", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "backslash:\\", TermType: RdfLiteral},
+	},
 
-	`<http://example.org/resource9> <http://example.org/property> "dquote:\"" .`: Triple{s: RdfTerm{value: "http://example.org/resource9", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "dquote:\"", termtype: RdfLiteral}},
+	`<http://example.org/resource9> <http://example.org/property> "dquote:\"" .`: {
+		S: RdfTerm{Value: "http://example.org/resource9", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "dquote:\"", TermType: RdfLiteral},
+	},
 
-	`<http://example.org/resource10> <http://example.org/property> "newline:\n" .`: Triple{s: RdfTerm{value: "http://example.org/resource10", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "newline:\n", termtype: RdfLiteral}},
+	`<http://example.org/resource10> <http://example.org/property> "newline:\n" .`: {
+		S: RdfTerm{Value: "http://example.org/resource10", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "newline:\n", TermType: RdfLiteral},
+	},
 
-	`<http://example.org/resource11> <http://example.org/property> "return\r" .`: Triple{s: RdfTerm{value: "http://example.org/resource11", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "return\r", termtype: RdfLiteral}},
+	`<http://example.org/resource11> <http://example.org/property> "return\r" .`: {
+		S: RdfTerm{Value: "http://example.org/resource11", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "return\r", TermType: RdfLiteral},
+	},
 
-	`<http://example.org/resource12> <http://example.org/property> "tab:\t" .`: Triple{s: RdfTerm{value: "http://example.org/resource12", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "tab:\t", termtype: RdfLiteral}},
+	`<http://example.org/resource12> <http://example.org/property> "tab:\t" .`: {
+		S: RdfTerm{Value: "http://example.org/resource12", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "tab:\t", TermType: RdfLiteral}},
 
-	`<http://example.org/resource16> <http://example.org/property> "\u00E9" .`: Triple{s: RdfTerm{value: "http://example.org/resource16", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "\u00E9", termtype: RdfLiteral}},
+	`<http://example.org/resource16> <http://example.org/property> "\u00E9" .`: {
+		S: RdfTerm{Value: "http://example.org/resource16", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "\u00E9", TermType: RdfLiteral},
+	},
 
-	`<http://example.org/resource30> <http://example.org/property> "chat"@fr .`: Triple{s: RdfTerm{value: "http://example.org/resource30", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "chat", language: "fr", termtype: RdfLiteral}},
+	`<http://example.org/resource30> <http://example.org/property> "chat"@fr .`: {
+		S: RdfTerm{Value: "http://example.org/resource30", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "chat", Language: "fr", TermType: RdfLiteral},
+	},
 
-	`<http://example.org/resource31> <http://example.org/property> "chat"@en .`: Triple{s: RdfTerm{value: "http://example.org/resource31", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "chat", language: "en", termtype: RdfLiteral}},
+	`<http://example.org/resource31> <http://example.org/property> "chat"@en .`: {
+		S: RdfTerm{Value: "http://example.org/resource31", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "chat", Language: "en", TermType: RdfLiteral},
+	},
 
-	"# this is a comment \n<http://example.org/resource1> <http://example.org/property> <http://example.org/resource2> .": Triple{s: RdfTerm{value: "http://example.org/resource1", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "http://example.org/resource2", termtype: RdfIri}},
+	"# this is a comment \n<http://example.org/resource1> <http://example.org/property> <http://example.org/resource2> .": {
+		S: RdfTerm{Value: "http://example.org/resource1", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "http://example.org/resource2", TermType: RdfIri},
+	},
 
-	"# this is a comment \n   # another comment \n<http://example.org/resource1> <http://example.org/property> <http://example.org/resource2> .": Triple{s: RdfTerm{value: "http://example.org/resource1", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "http://example.org/resource2", termtype: RdfIri}},
+	"# this is a comment \n   # another comment \n<http://example.org/resource1> <http://example.org/property> <http://example.org/resource2> .": {
+		S: RdfTerm{Value: "http://example.org/resource1", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "http://example.org/resource2", TermType: RdfIri},
+	},
 
-	"<http://example.org/resource7> <http://example.org/property> \"typed literal\"^^<http://example.org/datatype1> .": Triple{s: RdfTerm{value: "http://example.org/resource7", termtype: RdfIri},
-		p: RdfTerm{value: "http://example.org/property", termtype: RdfIri},
-		o: RdfTerm{value: "typed literal", datatype: "http://example.org/datatype1", termtype: RdfLiteral}},
+	"<http://example.org/resource7> <http://example.org/property> \"typed literal\"^^<http://example.org/DataType1> .": {
+		S: RdfTerm{Value: "http://example.org/resource7", TermType: RdfIri},
+		P: RdfTerm{Value: "http://example.org/property", TermType: RdfIri},
+		O: RdfTerm{Value: "typed literal", DataType: "http://example.org/DataType1", TermType: RdfLiteral},
+	},
 }
 
 var negativeCases = map[string]error{

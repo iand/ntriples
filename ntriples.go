@@ -1,10 +1,9 @@
 /*
-  To the extent possible under law, Ian Davis has waived all copyright
-  and related or neighboring rights to this Source Code file.
-  This work is published from the United Kingdom. 
+  This is free and unencumbered software released into the public domain. For more
+  information, see <http://unlicense.org/> or the accompanying UNLICENSE file.
 */
 
-// A package for parsing N-Triples 
+// Package ntriples parses N-Triples
 package ntriples
 
 import (
@@ -47,41 +46,61 @@ type Reader struct {
 
 // A Triple consists of a subject, predicate and object
 type Triple struct {
-	s RdfTerm
-	p RdfTerm
-	o RdfTerm
+	S RdfTerm
+	P RdfTerm
+	O RdfTerm
 }
 
 func (t Triple) String() string {
-	return fmt.Sprintf("%s %s %s .", t.s, t.p, t.o)
+	return fmt.Sprintf("%s %s %s .", t.S, t.P, t.O)
 }
 
 // An RdfTerm represents one of Iri, Blank Node or Literal
 type RdfTerm struct {
-	value    string
-	language string
-	datatype string
-	termtype int
+	Value    string
+	Language string
+	DataType string
+	TermType int
 }
 
 func (t RdfTerm) String() string {
-	switch t.termtype {
+	switch t.TermType {
 	case RdfIri:
-		return fmt.Sprintf("<%s>", t.value)
+		return fmt.Sprintf("<%s>", t.Value)
 
 	case RdfBlank:
-		return fmt.Sprintf("_:%s", t.value)
+		return fmt.Sprintf("_:%s", t.Value)
 	case RdfLiteral:
-		if t.language != "" {
-			return fmt.Sprintf("\"%s\"@%s", t.value, t.language)
-		} else if t.datatype != "" {
-			return fmt.Sprintf("\"%s\"^^<%s>", t.value, t.datatype)
+		if t.Language != "" {
+			return fmt.Sprintf("\"%s\"@%s", t.Value, t.Language)
+		} else if t.DataType != "" {
+			return fmt.Sprintf("\"%s\"^^<%s>", t.Value, t.DataType)
 		} else {
-			return fmt.Sprintf("\"%s\"", t.value)
+			return fmt.Sprintf("\"%s\"", t.Value)
 		}
 	}
 
 	return "[unknown type]"
+}
+
+func (t RdfTerm) IsIRI() bool {
+	return t.TermType == RdfIri
+}
+
+func (t RdfTerm) IsBlank() bool {
+	return t.TermType == RdfBlank
+}
+
+func (t RdfTerm) IsLiteral() bool {
+	return t.TermType == RdfLiteral
+}
+
+func (t RdfTerm) IsTypedLiteral() bool {
+	return t.TermType == RdfLiteral && t.DataType != ""
+}
+
+func (t RdfTerm) IsLanguageLiteral() bool {
+	return t.TermType == RdfLiteral && t.Language != ""
 }
 
 // Constants for types of RdfTerm
@@ -144,19 +163,19 @@ func (r *Reader) Read() (t Triple, e error) {
 			termCount++
 			switch termCount {
 			case 1:
-				t.s = term
+				t.S = term
 				err = r.expectWhitespace()
 				if err != nil {
 					return Triple{}, err
 				}
 			case 2:
-				t.p = term
+				t.P = term
 				err = r.expectWhitespace()
 				if err != nil {
 					return Triple{}, err
 				}
 			case 3:
-				t.o = term
+				t.O = term
 
 				err = r.readEndTriple()
 				if err != nil {
@@ -174,8 +193,6 @@ func (r *Reader) Read() (t Triple, e error) {
 			return Triple{}, err
 		}
 	}
-
-	return Triple{}, nil
 
 }
 
@@ -211,7 +228,9 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 	r.buf.Reset()
 
 	r1, err := r.skipWhitespace()
-
+	if err != nil {
+		return false, term, err
+	}
 	switch r1 {
 	case '<':
 		// Read an IRI
@@ -227,7 +246,7 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 				if r.buf.Len() == 0 {
 					return false, term, r.error(ErrUnexpectedCharacter)
 				}
-				return true, RdfTerm{value: r.buf.String(), termtype: RdfIri}, nil
+				return true, RdfTerm{Value: r.buf.String(), TermType: RdfIri}, nil
 			} else if r1 < 0x20 || r1 > 0x7E || r1 == ' ' || r1 == '<' || r1 == '"' {
 				return false, term, r.error(ErrUnexpectedCharacter)
 			}
@@ -270,7 +289,7 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 			if !((r1 >= 'a' && r1 <= 'z') || (r1 >= 'A' && r1 <= 'Z') || (r1 >= '0' && r1 <= '9')) {
 				if r1 == '.' || unicode.IsSpace(r1) {
 					r.unreadRune()
-					return true, RdfTerm{value: r.buf.String(), termtype: RdfBlank}, nil
+					return true, RdfTerm{Value: r.buf.String(), TermType: RdfBlank}, nil
 				}
 				return false, term, r.error(ErrUnexpectedCharacter)
 			}
@@ -301,9 +320,9 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 
 				case '.', ' ', '\t':
 					r.unreadRune()
-					return true, RdfTerm{value: r.buf.String(), termtype: RdfLiteral}, nil
+					return true, RdfTerm{Value: r.buf.String(), TermType: RdfLiteral}, nil
 				case '@':
-					tmpterm := RdfTerm{value: r.buf.String(), termtype: RdfLiteral}
+					tmpterm := RdfTerm{Value: r.buf.String(), TermType: RdfLiteral}
 					r.buf.Reset()
 
 					for {
@@ -318,7 +337,7 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 							if r.buf.Len() == 0 {
 								return false, term, r.error(ErrUnexpectedCharacter)
 							}
-							tmpterm.language = r.buf.String()
+							tmpterm.Language = r.buf.String()
 							return true, tmpterm, nil
 						}
 						if r1 == '-' || (r1 >= 'a' && r1 <= 'z') || (r1 >= '0' && r1 <= '9') {
@@ -328,7 +347,7 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 						}
 					}
 				case '^':
-					tmpterm := RdfTerm{value: r.buf.String(), termtype: RdfLiteral}
+					tmpterm := RdfTerm{Value: r.buf.String(), TermType: RdfLiteral}
 					r.buf.Reset()
 
 					r1, err = r.readRune()
@@ -366,7 +385,7 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 							if r.buf.Len() == 0 {
 								return false, term, r.error(ErrUnexpectedCharacter)
 							}
-							tmpterm.datatype = r.buf.String()
+							tmpterm.DataType = r.buf.String()
 							return true, tmpterm, nil
 						} else if r1 < 0x20 || r1 > 0x7E || r1 == ' ' || r1 == '<' || r1 == '"' {
 							return false, term, r.error(ErrUnexpectedCharacter)
@@ -431,8 +450,6 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 		return false, term, r.error(ErrUnexpectedCharacter)
 
 	}
-
-	panic("unreachable")
 
 }
 
