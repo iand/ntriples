@@ -42,6 +42,8 @@ type Reader struct {
 	column int
 	r      *bufio.Reader
 	buf    bytes.Buffer
+	err    error
+	t      Triple
 }
 
 // A Triple consists of a subject, predicate and object
@@ -127,21 +129,42 @@ func (r *Reader) error(err error) error {
 	}
 }
 
-// Read reads the next triple
-func (r *Reader) Read() (t Triple, e error) {
+// Err returns any error encountered while reading. If Err is non-nil then Next will always return false.
+func (r *Reader) Err() error {
+	return r.err
+}
+
+// Triple returns the last triple read
+func (r *Reader) Triple() Triple {
+	return r.t
+}
+
+// Next attempts to read the next triple from the underlying reader. It returns false if no triple could be read which
+// may indicate an error has occurred or the end of the input stream has been reached.
+func (r *Reader) Next() bool {
+	if r.err != nil {
+		return false
+	}
+
+	r.t = Triple{}
 	r.line++
 	r.column = -1
 
 	r1, err := r.skipWhitespace()
 	if err != nil {
-		return Triple{}, err
+		if err == io.EOF {
+			return false
+		}
+		r.err = err
+		return false
 	}
 
 	for r1 == '#' {
 		for {
 			r1, err = r.readRune()
 			if err != nil {
-				return Triple{}, err
+				r.err = err
+				return false
 			}
 			if r1 == '\n' {
 				break
@@ -149,12 +172,16 @@ func (r *Reader) Read() (t Triple, e error) {
 		}
 		r1, err = r.skipWhitespace()
 		if err != nil {
-			return Triple{}, err
+			r.err = err
+			return false
 		}
 
 	}
 
-	r.r.UnreadRune()
+	if err := r.r.UnreadRune(); err != nil {
+		r.err = err
+		return false
+	}
 
 	termCount := 0
 	for {
@@ -163,34 +190,42 @@ func (r *Reader) Read() (t Triple, e error) {
 			termCount++
 			switch termCount {
 			case 1:
-				t.S = term
+				r.t.S = term
 				err = r.expectWhitespace()
 				if err != nil {
-					return Triple{}, err
+					r.err = err
+					return false
 				}
 			case 2:
-				t.P = term
+				r.t.P = term
 				err = r.expectWhitespace()
 				if err != nil {
-					return Triple{}, err
+					r.err = err
+					return false
 				}
 			case 3:
-				t.O = term
+				r.t.O = term
 
 				err = r.readEndTriple()
 				if err != nil {
-					return Triple{}, err
+					r.err = err
+					return false
 				}
 
-				return t, nil
+				return true
 			default:
-				// TODO: error, too many terms
-				return Triple{}, r.error(ErrTermCount)
+				r.err = &ParseError{
+					Line:   r.line,
+					Column: r.column,
+					Err:    ErrTermCount,
+				}
+				return false
 			}
 
 		}
 		if err != nil {
-			return Triple{}, err
+			r.err = err
+			return false
 		}
 	}
 
@@ -209,7 +244,9 @@ func (r *Reader) readRune() (rune, error) {
 		r1, _, err = r.r.ReadRune()
 		if err == nil {
 			if r1 != '\n' {
-				r.r.UnreadRune()
+				if err := r.r.UnreadRune(); err != nil {
+					return r1, err
+				}
 				r1 = '\r'
 			}
 		}
@@ -219,9 +256,12 @@ func (r *Reader) readRune() (rune, error) {
 }
 
 // unreadRune puts the last rune read from r back.
-func (r *Reader) unreadRune() {
-	r.r.UnreadRune()
+func (r *Reader) unreadRune() error {
+	if err := r.r.UnreadRune(); err != nil {
+		return err
+	}
 	r.column--
+	return nil
 }
 
 func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
@@ -288,7 +328,9 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 			}
 			if !((r1 >= 'a' && r1 <= 'z') || (r1 >= 'A' && r1 <= 'Z') || (r1 >= '0' && r1 <= '9')) {
 				if r1 == '.' || unicode.IsSpace(r1) {
-					r.unreadRune()
+					if err := r.unreadRune(); err != nil {
+						return false, term, r.error(err)
+					}
 					return true, RdfTerm{Value: r.buf.String(), TermType: RdfBlank}, nil
 				}
 				return false, term, r.error(ErrUnexpectedCharacter)
@@ -319,7 +361,9 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 				switch r1 {
 
 				case '.', ' ', '\t':
-					r.unreadRune()
+					if err := r.unreadRune(); err != nil {
+						return false, term, r.error(err)
+					}
 					return true, RdfTerm{Value: r.buf.String(), TermType: RdfLiteral}, nil
 				case '@':
 					tmpterm := RdfTerm{Value: r.buf.String(), TermType: RdfLiteral}

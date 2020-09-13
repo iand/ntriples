@@ -36,14 +36,17 @@ Example of parsing an ntriples file and printing out every 5000th triple
 		count := 0
 		r := ntriples.NewReader(ntfile)
 		
-		for triple, err := r.Read(); err == nil;  triple, err = r.Read() {
+		for r.Next()
 			count++
 			if count % 5000 == 0{
-				fmt.Printf("%s\n", triple)
+				fmt.Printf("%s\n", r.Triple())
 			}
 			
 		}
 
+		if r.Err() != nil {
+			fmt.Printf("Unexpected error encountered: %v\n", r.Err())
+		}
 
 	}
 

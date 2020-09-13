@@ -130,21 +130,24 @@ var negativeCases = map[string]error{
 	"_:abc <http://example.org/property> \"foo\"^ .":                                                 ErrUnexpectedCharacter,
 	"_:abc <http://example.org/property> \"foo\"^^< .":                                               ErrUnexpectedCharacter,
 	"_:abc <http://example.org/property> \"foo\"^^<> .":                                              ErrUnexpectedCharacter,
-	"_:abc <> _:abc .":                                                                               ErrUnexpectedCharacter,
-	"_:abc < > _:abc .":                                                                              ErrUnexpectedCharacter,
+	"_:abc <> _:abc .":  ErrUnexpectedCharacter,
+	"_:abc < > _:abc .": ErrUnexpectedCharacter,
 }
 
 func TestRead(t *testing.T) {
 	for ntriple, expected := range testCases {
-		r := NewReader(strings.NewReader(ntriple))
-		triple, err := r.Read()
-		if err != nil {
-			t.Errorf("Expected %s but got error %s", expected, err)
-		}
+		t.Run("", func(t *testing.T) {
+			r := NewReader(strings.NewReader(ntriple))
+			ok := r.Next()
+			if !ok {
+				t.Errorf("Expected %s but got error %s", expected, r.Err())
+				return
+			}
 
-		if triple != expected {
-			t.Errorf("Expected %s but got %s", expected, triple)
-		}
+			if r.Triple() != expected {
+				t.Errorf("Expected %s but got %s", expected, r.Triple())
+			}
+		})
 	}
 }
 
@@ -160,15 +163,20 @@ func TestReadMultiple(t *testing.T) {
 
 	count := 0
 	r := NewReader(strings.NewReader(ntriples.String()))
-	triple, err := r.Read()
-	for err == nil {
+
+	for r.Next() {
+		triple := r.Triple()
 		if triple != triples[count] {
 			t.Errorf("Expected %s but got %s", triples[count], triple)
 			break
 		}
 
 		count++
-		triple, err = r.Read()
+	}
+
+	if r.Err() != nil {
+		t.Errorf("Got unexpected error %v", r.Err())
+		return
 	}
 
 	if count != len(triples) {
@@ -181,13 +189,15 @@ func TestReadMultiple(t *testing.T) {
 func TestReadErrors(t *testing.T) {
 
 	for ntriple, expected := range negativeCases {
-		r := NewReader(strings.NewReader(ntriple))
-		_, err := r.Read()
-
-		if err == nil {
-			t.Errorf("Expected %s for %s but no error reported", expected, ntriple)
-		} else if err.(*ParseError).Err != expected {
-			t.Errorf("Expected %s for %s but got error %s", expected, ntriple, err.(*ParseError).Err)
-		}
+		t.Run("", func(t *testing.T) {
+			r := NewReader(strings.NewReader(ntriple))
+			r.Next()
+			err := r.Err()
+			if err == nil {
+				t.Errorf("Expected %s for %s but no error reported", expected, ntriple)
+			} else if err.(*ParseError).Err != expected {
+				t.Errorf("Expected %s for %s but got error %s", expected, ntriple, err.(*ParseError).Err)
+			}
+		})
 	}
 }
