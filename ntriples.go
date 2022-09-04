@@ -17,6 +17,7 @@ import (
 
 // A ParseError is returned for parsing errors.
 // The first line is 1.  The first column is 0.
+// Deprecated: use ParseError from github.com/iand/nquads package instead
 type ParseError struct {
 	Line   int   // Line where the error occurred
 	Column int   // Column (rune index) where the error occurred
@@ -37,6 +38,7 @@ var (
 	ErrUnterminatedTriple  = errors.New("unterminated triple, expecting '.'")
 )
 
+// Deprecated: use Reader from github.com/iand/nquads package instead
 type Reader struct {
 	line   int
 	column int
@@ -47,6 +49,7 @@ type Reader struct {
 }
 
 // A Triple consists of a subject, predicate and object
+// Deprecated: use Quad from github.com/iand/nquads package instead
 type Triple struct {
 	S RdfTerm
 	P RdfTerm
@@ -58,6 +61,7 @@ func (t Triple) String() string {
 }
 
 // An RdfTerm represents one of Iri, Blank Node or Literal
+// Deprecated: use Term from github.com/iand/gordf package instead
 type RdfTerm struct {
 	Value    string
 	Language string
@@ -114,6 +118,7 @@ const (
 )
 
 // NewReader returns a new Reader that reads from r.
+// Deprecated: use NewReader from github.com/iand/nquads package instead
 func NewReader(r io.Reader) *Reader {
 	return &Reader{
 		r: bufio.NewReader(r),
@@ -228,7 +233,6 @@ func (r *Reader) Next() bool {
 			return false
 		}
 	}
-
 }
 
 // readRune reads one rune from r, folding \r\n to \n and keeping track
@@ -494,7 +498,6 @@ func (r *Reader) parseTerm() (haveField bool, term RdfTerm, err error) {
 		return false, term, r.error(ErrUnexpectedCharacter)
 
 	}
-
 }
 
 func (r *Reader) readEndTriple() (err error) {
@@ -523,7 +526,6 @@ func (r *Reader) readEndTriple() (err error) {
 	}
 
 	return nil
-
 }
 
 func (r *Reader) skipWhitespace() (r1 rune, err error) {
@@ -540,7 +542,6 @@ func (r *Reader) skipWhitespace() (r1 rune, err error) {
 	}
 
 	return r1, nil
-
 }
 
 func (r *Reader) expectWhitespace() (err error) {
